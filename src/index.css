@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply m-0 p-0 box-border;
+  }
+  body {
+    @apply font-sans antialiased bg-[#F8FAFC] text-[#1E293B];
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body.dark {
+    @apply bg-[#0F172A] text-[#F1F5F9];
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-[#E2E8F0] p-5;
+  }
+  body.dark .card {
+    @apply bg-[#1E293B] border-[#334155];
+  }
+  .btn-primary {
+    @apply bg-[#4F46E5] text-white px-6 py-2.5 rounded-lg font-medium
+           hover:bg-[#4338CA] transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:ring-offset-2;
+  }
+  .btn-secondary {
+    @apply bg-white text-[#1E293B] border border-[#E2E8F0] px-6 py-2.5 rounded-lg font-medium
+           hover:bg-[#F9FAFB] transition-colors duration-200;
+  }
+  body.dark .btn-secondary {
+    @apply bg-[#1E293B] text-[#F1F5F9] border-[#334155] hover:bg-[#334155];
+  }
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-[#1E293B]
+           focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:border-transparent
+           transition-colors duration-200;
+  }
+  body.dark .input-field {
+    @apply bg-[#0F172A] border-[#334155] text-[#F1F5F9];
+  }
+  .tab-btn {
+    @apply flex flex-col items-center justify-center gap-0.5 text-xs font-medium text-[#94A3B8]
+           transition-colors duration-200 py-1 px-3;
+  }
+  .tab-btn.active {
+    @apply text-[#4F46E5];
+  }
+  body.dark .tab-btn.active {
+    @apply text-[#818CF8];
+  }
+  .fab {
+    @apply fixed bottom-20 right-6 w-14 h-14 bg-[#4F46E5] text-white rounded-full
+           shadow-lg flex items-center justify-center text-2xl
+           hover:bg-[#4338CA] transition-colors duration-200 z-30;
+  }
+}
+
+/* 底部导航 */
+.bottom-nav {
+  @apply fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0]
+         flex items-center justify-around py-2 px-4 z-20;
+}
+body.dark .bottom-nav {
+  @apply bg-[#1E293B] border-[#334155];
+}
+
+/* 分类按钮 */
+.cat-btn {
+  @apply flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-[#E2E8F0]
+         text-[#64748B] text-xs font-medium transition-all duration-150 min-w-[64px];
+}
+.cat-btn:hover {
+  @apply border-[#C7D2FE] bg-[#EEF2FF];
+}
+body.dark .cat-btn {
+  @apply border-[#334155] text-[#94A3B8];
+}
+body.dark .cat-btn:hover {
+  @apply border-[#818CF8] bg-[#1E1B4B];
+}
+.cat-btn.selected-expense {
+  @apply border-[#EF4444] bg-[#FEF2F2] text-[#EF4444];
+}
+.cat-btn.selected-income {
+  @apply border-[#10B981] bg-[#ECFDF5] text-[#10B981];
+}
+
+/* 账单条目 */
+.tx-row {
+  @apply flex items-center justify-between py-3 border-b border-[#F1F5F9] last:border-0;
+}
+body.dark .tx-row {
+  @apply border-[#1E293B];
+}
+
+/* 弹窗 */
+.modal-overlay {
+  @apply fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-40;
+}
+.modal-content {
+  @apply bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl
+         max-h-[90vh] overflow-y-auto p-6 shadow-2xl;
+}
+body.dark .modal-content {
+  @apply bg-[#1E293B];
+}
+
+/* 金额输入 */
+.amount-input {
+  @apply text-4xl font-bold text-center w-full border-none outline-none bg-transparent;
+}
+
+/* 统计柱 */
+.bar-fill {
+  @apply rounded-full transition-all duration-500;
+}
