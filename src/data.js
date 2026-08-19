@@ -76,18 +76,31 @@ export function hasRecordsWithCategory(catId) {
   return getRecords().some(r => r.category === catId)
 }
 
-// 示例数据（首次使用生成）
-const SAMPLE_DATA = [
-  { id: 1, type: 'expense', category: 1, amount: 28.5, date: todayStr(), note: '午餐' },
-  { id: 2, type: 'expense', category: 1, amount: 45,    date: todayStr(), note: '晚餐' },
-  { id: 3, type: 'income',  category: 10, amount: 8000, date: todayStr(), note: '工资' },
-  { id: 4, type: 'expense', category: 3, amount: 6,     date: todayStr(), note: '地铁' },
-  { id: 5, type: 'expense', category: 7, amount: 199,   date: todayStr(), note: '买了一本书' },
-]
+// 示例数据（首次使用生成，包含多个月份的记录）
+const now = new Date()
+const currentMonth = now.toISOString().slice(0, 7) // YYYY-MM
+const currentDay = now.toISOString().slice(0, 10)  // YYYY-MM-DD
+const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10)
+const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0, 10)
 
-function todayStr() {
-  return new Date().toISOString().split('T')[0]
-}
+const SAMPLE_DATA = [
+  // 本月记录
+  { id: 1, type: 'expense', category: 1, amount: 28.5, date: currentDay, note: '午餐' },
+  { id: 2, type: 'expense', category: 1, amount: 45,    date: currentDay, note: '晚餐' },
+  { id: 3, type: 'income',  category: 10, amount: 8000, date: currentDay, note: '工资' },
+  { id: 4, type: 'expense', category: 3, amount: 6,     date: currentDay, note: '地铁' },
+  { id: 5, type: 'expense', category: 7, amount: 199,   date: currentDay, note: '买了一本书' },
+  // 上月记录
+  { id: 6, type: 'expense', category: 1, amount: 156,   date: lastMonth, note: '聚餐' },
+  { id: 7, type: 'expense', category: 2, amount: 3500,  date: lastMonth, note: '房租' },
+  { id: 8, type: 'income',  category: 10, amount: 8000, date: lastMonth, note: '工资' },
+  { id: 9, type: 'expense', category: 6, amount: 128,   date: lastMonth, note: '电影' },
+  // 两个月前的记录
+  { id: 10, type: 'expense', category: 1, amount: 89,    date: twoMonthsAgo, note: '零食' },
+  { id: 11, type: 'expense', category: 5, amount: 256,   date: twoMonthsAgo, note: '医药' },
+  { id: 12, type: 'income',  category: 11, amount: 2000, date: twoMonthsAgo, note: '奖金' },
+  { id: 13, type: 'expense', category: 8, amount: 599,   date: twoMonthsAgo, note: '课程' },
+]
 
 // ---- CRUD ----
 
@@ -182,9 +195,10 @@ export function categoryBreakdown(yearMonth) {
 export function trendData(refMonth) {
   const months = []
   const d = new Date(refMonth + '-01')
-  for (let i = 5; i >= 0; i--) {
+  // 以选中月份为中心，前后各3个月，共7个月
+  for (let i = -3; i <= 3; i++) {
     const m = new Date(d)
-    m.setMonth(m.getMonth() - i)
+    m.setMonth(m.getMonth() + i)
     const ym = m.toISOString().slice(0, 7)
     const s = monthlySummary(ym)
     months.push({

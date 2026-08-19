@@ -7,6 +7,7 @@ import {
   getFontScale, setFontScale,
   addCustomCategory, updateCustomCategory, deleteCustomCategory, hasRecordsWithCategory,
 } from './data.js'
+import { initSnakeGame, startSnakeGame, stopSnakeGame, pauseSnakeGame, resumeSnakeGame, getSnakeHighScore, setSnakeScoreCallback, setSnakeGameOverCallback } from './snake.js'
 
 // ==================== 状态 ====================
 let currentTab = 'home'
@@ -14,6 +15,9 @@ let currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
 let showModal = false
 let modalType = null // 'add' | 'edit'
 let editingId = null
+
+// 游戏状态
+let snakeBtnMode = 'idle' // 'idle' | 'running' | 'paused' | 'over'
 
 // 表单状态
 let formType = 'expense'
@@ -37,7 +41,12 @@ render()
 
 // ==================== 导航 ====================
 function switchTab(tab) {
+  if (currentTab === 'game') stopSnakeGame()
   currentTab = tab
+  // 离开游戏页时重置按钮状态
+  if (tab !== 'game') {
+    snakeBtnMode = 'idle'
+  }
   render()
 }
 
@@ -362,17 +371,53 @@ function render() {
   const breakdown = categoryBreakdown(currentMonth)
   const trend = trendData(currentMonth)
   const records = getMonthRecords(currentMonth)
+  const highScore = getSnakeHighScore()
 
   const maxExpense = Math.max(...trend.map(m => m.expense), 1)
   const maxIncome = Math.max(...trend.map(m => m.income), 1)
   const chartMax = Math.max(maxExpense, maxIncome)
+
+  // 游戏页不需要 FAB 和月份切换
+  if (currentTab === 'game') {
+    app.innerHTML = `
+      <div class="pb-20">
+        ${renderSnakeGame(highScore)}
+      </div>
+
+      <!-- 底部导航 -->
+      <nav class="bottom-nav">
+        <button class="tab-btn ${currentTab === 'home' ? 'active' : ''}" onclick="switchTab('home')">
+          <span class="text-xl">${currentTab === 'home' ? '🏠' : '🏠'}</span>
+          <span>首页</span>
+        </button>
+        <button class="tab-btn ${currentTab === 'stats' ? 'active' : ''}" onclick="switchTab('stats')">
+          <span class="text-xl">${currentTab === 'stats' ? '📊' : '📊'}</span>
+          <span>统计</span>
+        </button>
+        <button class="tab-btn ${currentTab === 'game' ? 'active' : ''}" onclick="switchTab('game')">
+          <span class="text-xl">${currentTab === 'game' ? '🎮' : '🎮'}</span>
+          <span>游戏</span>
+        </button>
+        <button class="tab-btn ${currentTab === 'settings' ? 'active' : ''}" onclick="switchTab('settings')">
+          <span class="text-xl">${currentTab === 'settings' ? '⚙️' : '⚙️'}</span>
+          <span>设置</span>
+        </button>
+      </nav>
+    `
+  // 每次进入游戏页都重新初始化（处理 canvas DOM 重建）
+  if (currentTab === 'game') {
+    initSnakeGame()
+    setSnakeScoreCallback(updateSnakeScore)
+    setSnakeGameOverCallback(setSnakeGameOver)
+  }
+    return
+  }
 
   app.innerHTML = `
     <!-- 页面内容 -->
     <div class="pb-20">
       ${renderHome(summary, breakdown, records)}
       ${currentTab === 'stats' ? renderStats(summary, breakdown, trend, chartMax) : ''}
-      ${currentTab === 'categories' ? renderCategories() : ''}
       ${currentTab === 'settings' ? renderSettings() : ''}
     </div>
 
@@ -386,9 +431,9 @@ function render() {
         <span class="text-xl">${currentTab === 'stats' ? '📊' : '📊'}</span>
         <span>统计</span>
       </button>
-      <button class="tab-btn ${currentTab === 'categories' ? 'active' : ''}" onclick="switchTab('categories')">
-        <span class="text-xl">${currentTab === 'categories' ? '🏷️' : '🏷️'}</span>
-        <span>分类</span>
+      <button class="tab-btn ${currentTab === 'game' ? 'active' : ''}" onclick="switchTab('game')">
+        <span class="text-xl">${currentTab === 'game' ? '🎮' : '🎮'}</span>
+        <span>游戏</span>
       </button>
       <button class="tab-btn ${currentTab === 'settings' ? 'active' : ''}" onclick="switchTab('settings')">
         <span class="text-xl">${currentTab === 'settings' ? '⚙️' : '⚙️'}</span>
@@ -404,15 +449,14 @@ function render() {
     ${showCatModal ? renderCatModal() : ''}
   `
 
-  // 月份切换事件
-  const monthInput = document.getElementById('month-picker')
-  if (monthInput) {
+  // 月份切换事件（绑定所有月份选择器）
+  document.querySelectorAll('.month-picker').forEach((monthInput) => {
     monthInput.value = currentMonth
     monthInput.onchange = (e) => {
       currentMonth = e.target.value
       render()
     }
-  }
+  })
 }
 
 // ==================== 首页 ====================
@@ -426,7 +470,7 @@ function renderHome(summary, breakdown, records) {
       <!-- 顶部月份选择 -->
       <div class="relative flex items-center justify-between px-5 py-4 bg-white border-b border-[#E2E8F0]">
         <h1 class="text-lg font-bold ${isDark ? 'text-white' : 'text-[#1E293B]'}">💰 金金计较</h1>
-        <input type="month" id="month-picker" class="input-field w-36 text-sm" />
+        <input type="month" id="month-picker" class="input-field month-picker w-36 text-sm" />
       </div>
 
       <!-- 月度概览 -->
@@ -525,7 +569,7 @@ function renderStats(summary, breakdown, trend, chartMax) {
       <!-- 顶部 -->
       <div class="relative flex items-center justify-between px-5 py-4 bg-white border-b border-[#E2E8F0]">
         <h1 class="text-lg font-bold ${isDark ? 'text-white' : 'text-[#1E293B]'}">📊 统计报表</h1>
-        <input type="month" id="month-picker" class="input-field w-36 text-sm" />
+        <input type="month" id="month-picker" class="input-field month-picker w-36 text-sm" />
       </div>
 
       <!-- 月度汇总 -->
@@ -553,7 +597,7 @@ function renderStats(summary, breakdown, trend, chartMax) {
       <!-- 近6月趋势（CSS 柱状图） -->
       <div class="px-5 pb-4">
         <div class="card">
-          <h2 class="font-semibold mb-4 ${isDark ? 'text-white' : 'text-[#1E293B]'}">近6个月趋势</h2>
+          <h2 class="font-semibold mb-4 ${isDark ? 'text-white' : 'text-[#1E293B]'}">近7个月趋势</h2>
           <div class="flex items-end justify-between gap-2" style="height:180px;">
             ${trend.map(m => {
               const eH = (m.expense / chartMax * 140).toFixed(1)
@@ -703,6 +747,109 @@ function renderSettings() {
   `
 }
 
+// ==================== 贪吃蛇游戏 ====================
+function renderSnakeGame(highScore) {
+  const dark = document.documentElement.classList.contains('dark')
+  const textPrimary = dark ? '#F1F5F9' : '#1E293B'
+  const textSecondary = dark ? '#94A3B8' : '#64748B'
+  const showPause = snakeBtnMode === 'running'
+  const showResume = snakeBtnMode === 'paused'
+  const startLabel = snakeBtnMode === 'over' ? '🔄 再来一局' : '🚀 开始游戏'
+
+  return `
+    <div>
+      <!-- 顶部栏 -->
+      <div class="relative flex items-center px-5 py-4 bg-white border-b border-[#E2E8F0]">
+        <h1 class="text-lg font-bold ${textPrimary}">🎮 贪吃蛇</h1>
+      </div>
+
+      <div class="px-5 py-4 flex flex-col items-center gap-4">
+        <!-- 分数面板 -->
+        <div class="card w-full flex items-center justify-between">
+          <div class="text-center">
+            <div class="text-xs ${textSecondary} mb-1">当前得分</div>
+            <div id="snake-score" class="text-3xl font-bold text-[#4F46E5]">0</div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs ${textSecondary} mb-1">最高记录</div>
+            <div class="text-3xl font-bold text-[#F59E0B]">${highScore}</div>
+          </div>
+          <div>
+            ${showPause ? `<button id="snake-btn-pause" onclick="snakePauseBtn()" class="btn-secondary text-sm py-2 px-4">暂停</button>` : ''}
+          </div>
+        </div>
+
+        <!-- 游戏画布 -->
+        <div class="card p-2">
+          <canvas
+            id="snake-canvas"
+            style="width:320px;height:320px;border-radius:8px;cursor:pointer;touch-action:none;display:block;margin:0 auto;"
+          ></canvas>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="flex gap-3 w-full">
+          <button id="snake-btn-start"
+            onclick="snakeStartBtn()"
+            class="btn-primary flex-1 py-3 text-base font-bold">
+            ${startLabel}
+          </button>
+          ${showResume ? `
+          <button id="snake-btn-resume"
+            onclick="snakeResumeBtn()"
+            class="btn-secondary flex-1 py-3 text-base font-bold">
+            ▶️ 继续
+          </button>` : ''}
+        </div>
+
+        <!-- 操作说明 -->
+        <div class="card w-full">
+          <div class="text-sm font-medium mb-2 ${textPrimary}">操作说明</div>
+          <div class="text-xs ${textSecondary} space-y-1">
+            <div>🖥️ 电脑：方向键控制方向，空格键暂停/继续</div>
+            <div>📱 手机：在画布上滑动控制方向</div>
+            <div>⚡ 每得 50 分蛇速提升，挑战极限！</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+// ==================== 游戏按钮回调 ====================
+function snakeStartBtn() {
+  if (currentTab !== 'game') return
+  snakeBtnMode = 'running'
+  startSnakeGame()
+  render()
+}
+
+function snakePauseBtn() {
+  if (currentTab !== 'game') return
+  snakeBtnMode = 'paused'
+  pauseSnakeGame()
+  render()
+}
+
+function snakeResumeBtn() {
+  if (currentTab !== 'game') return
+  snakeBtnMode = 'running'
+  resumeSnakeGame()
+  render()
+}
+
+function updateSnakeScore(score) {
+  if (currentTab !== 'game') return
+  const el = document.getElementById('snake-score')
+  if (el) el.textContent = score
+}
+
+function setSnakeGameOver() {
+  if (currentTab !== 'game') return
+  snakeBtnMode = 'over'
+  render()
+}
+
 // ==================== 弹窗（记一笔 / 编辑） ====================
 function renderModal() {
   const isDark = document.documentElement.classList.contains('dark')
@@ -833,3 +980,6 @@ window.confirmDeleteCustomCategory = confirmDeleteCustomCategory
 window.setCatFormType = setCatFormType
 window.setCatFormIcon = setCatFormIcon
 window.setCatFormName = setCatFormName
+window.snakeStartBtn = snakeStartBtn
+window.snakePauseBtn = snakePauseBtn
+window.snakeResumeBtn = snakeResumeBtn
